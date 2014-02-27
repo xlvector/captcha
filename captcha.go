@@ -396,7 +396,7 @@ func ScanList(fname string, output string, masks []*Mask) {
 		}
 		line = strings.Trim(line, "\n")
 		tks := strings.Split(line, "\t")
-		if pattern.FindString(tks[1]) == tks[1] {
+		if pattern.FindString(strings.Replace(tks[1], " ", "", -1)) == strings.Replace(tks[1], " ", "", -1) {
 			continue
 		}
 		link := ConcatLink(tks[0], tks[1])
