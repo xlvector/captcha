@@ -33,57 +33,69 @@ func Color2Double(color color.Color) float64 {
 	}
 }
 
-func BiColor(img image.Image) *image.Gray {
-	out := image.NewGray(img.Bounds())
+func EncodeXY(x int, y int) int {
+	return x*10000 + y
+}
+
+func MinusXY(xy int, px int, py int) int {
+	x := xy / 10000
+	y := xy % 10000
+	return EncodeXY(x-px, y-py)
+}
+
+func AddXY(xy int, px int, py int) int {
+	x := xy / 10000
+	y := xy % 10000
+	return EncodeXY(x+px, y+py)
+}
+
+func Contains(m map[int]bool, k int) bool {
+	v, ok := m[k]
+	return v && ok
+}
+
+func BiColor(img image.Image) map[int]bool {
+	out := make(map[int]bool)
 	for x := 0; x < img.Bounds().Dx(); x++ {
 		for y := 0; y < img.Bounds().Dy(); y++ {
 			r, g, b, a := img.At(x, y).RGBA()
 			c := (r + g + b) / (255 * 3)
-			if c < 200 {
-				out.Set(x, y, color.Gray{Y: 255})
-			} else {
-				out.Set(x, y, color.Gray{Y: 0})
-			}
-			if a < 20 {
-				out.Set(x, y, color.Gray{Y: 0})
+			if c < 200 && a > 20 {
+				out[EncodeXY(x, y)] = true
 			}
 		}
 	}
 	return out
 }
 
-func MatchMask(src *image.Gray, srcLeft int, srcTop int, mask *image.Gray) float64 {
-	srcWidth := src.Bounds().Dx()
-	srcHeight := src.Bounds().Dy()
-	maskWidth := mask.Bounds().Dx()
-	maskHeight := mask.Bounds().Dy()
-	srcWidth = srcWidth - srcLeft
-	srcHeight = srcHeight - srcTop
-
-	if srcWidth < maskWidth {
-		return 0.0
+func GetImageXWeight(src map[int]bool) map[int]int {
+	ret := make(map[int]int)
+	for xy, _ := range src {
+		x := xy / 10000
+		_, ok := ret[x]
+		if !ok {
+			ret[x] = 0
+		}
+		ret[x] += 1
 	}
+	return ret
+}
 
-	if srcHeight < maskHeight {
-		return 0.0
-	}
-
+func MatchMask(src map[int]bool, srcLeft int, srcTop int, srcXWeight map[int]int, mask map[int]bool) float64 {
+	mw, _ := getSize(mask)
 	sim := 0.0
 	r1 := 0.0
-	r2 := 0.0
-	for x := 0; x < maskWidth; x++ {
-		for y := 0; y < maskHeight; y++ {
-			srcColor := Color2Double(src.At(x+srcLeft, y+srcTop))
-			maskColor := Color2Double(mask.At(x, y))
-			if srcColor > 0 && maskColor > 0 {
-				sim += 1.0
-			}
-			if srcColor > 0 {
-				r1 += 1.0
-			}
-			if maskColor > 0 {
-				r2 += 1.0
-			}
+	for i := srcLeft; i <= srcLeft+mw; i++ {
+		v, ok := srcXWeight[i]
+		if ok {
+			r1 += float64(v)
+		}
+	}
+	r2 := (float64)(len(mask))
+	for xy, _ := range mask {
+		newXY := AddXY(xy, srcLeft, srcTop)
+		if Contains(src, newXY) {
+			sim += 1.0
 		}
 	}
 	s1 := sim / r1
@@ -168,12 +180,12 @@ func LoadImage(fname string) image.Image {
 }
 
 type Mask struct {
-	Img   *image.Gray
+	Img   map[int]bool
 	Label string
 }
 
-func LoadMasks(folder string) []*Mask {
-	masks := []*Mask{}
+func LoadMasks(folder string) map[string][]*Mask {
+	masks := make(map[string][]*Mask)
 	err := filepath.Walk(folder, func(root string, f os.FileInfo, err error) error {
 		if f == nil {
 			return err
@@ -188,7 +200,11 @@ func LoadMasks(folder string) []*Mask {
 				mask := Mask{}
 				mask.Img = BiColor(img)
 				mask.Label = tks[0]
-				masks = append(masks, &mask)
+				_, ok := masks[mask.Label]
+				if !ok {
+					masks[mask.Label] = []*Mask{}
+				}
+				masks[mask.Label] = append(masks[mask.Label], &mask)
 			}
 		}
 		return nil
@@ -199,34 +215,48 @@ func LoadMasks(folder string) []*Mask {
 	return masks
 }
 
-func FindBeginPos(img *image.Gray) int {
-	for x := 0; x < img.Bounds().Dx(); x++ {
-		for y := 0; y < img.Bounds().Dy(); y++ {
-			if Color2Double(img.At(x, y)) > 0.0 {
+func FindBeginPos(img map[int]bool, beginX int) int {
+	width, height := getSize(img)
+	for x := beginX; x < width; x++ {
+		for y := 0; y < height/3; y++ {
+			if Contains(img, EncodeXY(x, y)) {
+				return x
+			}
+		}
+		for y := 2 * height / 3; y <= height; y++ {
+			if Contains(img, EncodeXY(x, y)) {
 				return x
 			}
 		}
 	}
-	return img.Bounds().Dx()
+	return width
 }
 
-func UseMask(srcImg *image.Gray, left int, top int, mask *Mask) {
-	for x := 0; x < mask.Img.Bounds().Dx(); x++ {
-		for y := 0; y < mask.Img.Bounds().Dy(); y++ {
-			c := Color2Double(mask.Img.At(x, y))
-			if c > 0.0 {
-				srcImg.SetGray(x+left, y+top, color.Gray{Y: 0})
-			}
+func getSize(img map[int]bool) (int, int) {
+	width := 0
+	height := 0
+	for xy, _ := range img {
+		x := xy / 10000
+		y := xy % 10000
+		if width < x {
+			width = x
+		}
+		if height < y {
+			height = y
 		}
 	}
+	return width, height
 }
 
-func Recognize(srcImg *image.Gray, masks []*Mask) string {
-	curX := FindBeginPos(srcImg)
+func Recognize(srcImg map[int]bool, masks map[string][]*Mask) string {
+	width, height := getSize(srcImg)
+	srcXWeight := GetImageXWeight(srcImg)
+	curX := FindBeginPos(srcImg, 0)
 	log.Println("begin pos", curX)
 	ret := ""
+	lastMaskWidth := 0
 	for {
-		if curX >= srcImg.Bounds().Dx() {
+		if curX >= width {
 			break
 		}
 		maxSim := 0.0
@@ -234,33 +264,50 @@ func Recognize(srcImg *image.Gray, masks []*Mask) string {
 		//nextY := 0
 		var bestMask *Mask
 		label := ""
-		beginX := curX - 3
+		beginX := FindBeginPos(srcImg, curX+2)
+		endX := beginX + 2
+		if beginX == curX+2 {
+			beginX = curX - lastMaskWidth/3
+			endX = curX + 2
+		}
 		if beginX < 0 {
 			beginX = 0
 		}
-		for _, mask := range masks {
-			for x := beginX; x < curX+6; x++ {
-				for y := 0; y < srcImg.Bounds().Dy()-mask.Img.Bounds().Dy()+1; y++ {
-					sim := MatchMask(srcImg, x, y, mask.Img)
-					sim = sim * (float64)(x-beginX+20) / (float64)(x-beginX+21)
-					if sim > maxSim {
-						maxSim = sim
-						bestMask = mask
-						nextX = x
-						label = mask.Label
-						//nextY = y
+		for _, labelMasks := range masks {
+			localMaxSim := 0.0
+			var localBestMask *Mask
+			localNextX := curX
+			localLabel := ""
+			for k, mask := range labelMasks {
+				for x := beginX; x <= endX; x++ {
+					for y := 0; y <= height/3; y++ {
+						sim := MatchMask(srcImg, x, y, srcXWeight, mask.Img)
+						if sim > localMaxSim {
+							localMaxSim = sim
+							localBestMask = mask
+							localNextX = x
+							localLabel = mask.Label
+						}
 					}
 				}
+				if k > 30 && localMaxSim < 0.7 {
+					break
+				}
+			}
+			if localMaxSim > maxSim {
+				maxSim = localMaxSim
+				nextX = localNextX
+				label = localLabel
+				bestMask = localBestMask
 			}
 		}
 		if bestMask == nil {
 			break
 		}
-		/*UseMask(srcImg, nextX, nextY, bestMask)
-		f, _ := os.Create(output + ".png")
-		defer f.Close()
-		png.Encode(f, srcImg)*/
-		curX = nextX + bestMask.Img.Bounds().Dx()
+
+		maskWidth, _ := getSize(bestMask.Img)
+		curX = nextX + maskWidth
+		lastMaskWidth = maskWidth
 		log.Println(maxSim, label)
 		if maxSim < 0.8 {
 			break
@@ -374,7 +421,7 @@ func LoadProxyList() []string {
 	return ret
 }
 
-func ScanList(fname string, output string, masks []*Mask) {
+func ScanList(fname string, output string, masks map[string][]*Mask) {
 	proxys := LoadProxyList()
 	proced := LoadProcessedImages()
 
@@ -439,13 +486,12 @@ func main() {
 		} else {
 			img = LoadImage(*imgFile)
 		}
-		f, _ := os.Create("orgin.png")
-		defer f.Close()
-		png.Encode(f, img)
+		if img == nil {
+			log.Println("load image failed")
+			os.Exit(1)
+		}
+		SaveImage(img, "origin")
 		eimg := BiColor(img)
-		f, _ = os.Create("gray.png")
-		defer f.Close()
-		png.Encode(f, eimg)
 		log.Println(Recognize(eimg, masks))
 	}
 }
