@@ -278,7 +278,7 @@ func Recognize(srcImg map[int]bool, masks map[string][]*Mask) string {
 			var localBestMask *Mask
 			localNextX := curX
 			localLabel := ""
-			for k, mask := range labelMasks {
+			for _, mask := range labelMasks {
 				for x := beginX; x <= endX; x++ {
 					for y := 0; y <= height/3; y++ {
 						sim := MatchMask(srcImg, x, y, srcXWeight, mask.Img)
@@ -289,9 +289,6 @@ func Recognize(srcImg map[int]bool, masks map[string][]*Mask) string {
 							localLabel = mask.Label
 						}
 					}
-				}
-				if k > 30 && localMaxSim < 0.7 {
-					break
 				}
 			}
 			if localMaxSim > maxSim {
