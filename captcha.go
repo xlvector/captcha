@@ -104,7 +104,7 @@ func dialTimeout(network, addr string) (net.Conn, error) {
 	return c, nil
 }
 
-func LoadImageFromURL(link string, proxy string) image.Image {
+func LoadImageFromURL(link string, proxy string, pageLink string) image.Image {
 	req, err := http.NewRequest("GET", link, nil)
 	if err != nil || req == nil || req.Header == nil {
 		return nil
@@ -121,6 +121,8 @@ func LoadImageFromURL(link string, proxy string) image.Image {
 			},
 		}
 	}
+	req.Header.Add("Referer", pageLink)
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0")
 	resp, err := client.Do(req)
 
 	if err != nil || resp == nil || resp.Body == nil {
@@ -288,6 +290,8 @@ func Recognize(srcImg map[int]bool, masks map[string][]*Mask) string {
 		if beginX == curX+2 {
 			beginX = curX - lastMaskWidth/2
 			endX = curX + 3
+		} else {
+			beginX = beginX - 1
 		}
 		if beginX < 0 {
 			beginX = 0
@@ -326,7 +330,7 @@ func Recognize(srcImg map[int]bool, masks map[string][]*Mask) string {
 		curX = nextX + maskWidth
 		lastMaskWidth = maskWidth
 		log.Println(maxSim, label)
-		if maxSim < 0.7 {
+		if maxSim < 0.8 {
 			break
 		}
 
@@ -472,7 +476,7 @@ func ScanList(fname string, domain string, masks map[string][]*Mask) {
 		if !strings.Contains(link, domain) {
 			continue
 		}
-		img := LoadImageFromURL(link, proxys[rand.Intn(len(proxys))])
+		img := LoadImageFromURL(link, proxys[rand.Intn(len(proxys))], tks[0])
 		if img == nil {
 			continue
 		}
@@ -490,6 +494,7 @@ func main() {
 	maskFolder := flag.String("mask", "masks", "mask folder name")
 	listFile := flag.String("list", "", "list file name")
 	domain := flag.String("domain", "", "domain")
+	refer := flag.String("refer", "", "domain")
 	flag.Parse()
 	masks := LoadMasks(*maskFolder)
 	log.Println("load", len(masks), "masks")
@@ -499,7 +504,7 @@ func main() {
 	} else {
 		var img image.Image
 		if strings.Contains(*imgFile, "http://") {
-			img = LoadImageFromURL(*imgFile, "")
+			img = LoadImageFromURL(*imgFile, "", *refer)
 		} else {
 			img = LoadImage(*imgFile)
 		}
