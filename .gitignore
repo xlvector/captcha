@@ -1,3 +1,9 @@
+combine.png
+gray.png
+origin.png
+*.bak
+*.log
+*.out
 phones.txt
 captcha
 

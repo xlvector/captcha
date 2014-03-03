@@ -23,16 +23,6 @@ import (
 	"time"
 )
 
-func Color2Double(color color.Color) float64 {
-	r, g, b, _ := color.RGBA()
-	c := (r + g + b) / (255 * 3)
-	if c > 100 {
-		return 1.0
-	} else {
-		return -1.0
-	}
-}
-
 func EncodeXY(x int, y int) int {
 	return x*10000 + y
 }
@@ -60,7 +50,7 @@ func BiColor(img image.Image) map[int]bool {
 		for y := 0; y < img.Bounds().Dy(); y++ {
 			r, g, b, a := img.At(x, y).RGBA()
 			c := (r + g + b) / (255 * 3)
-			if c < 200 && a > 20 {
+			if c < 250 && a > 20 {
 				out[EncodeXY(x, y)] = true
 			}
 		}
@@ -215,6 +205,22 @@ func LoadMasks(folder string) map[string][]*Mask {
 	return masks
 }
 
+func SaveMapImg(img map[int]bool, name string) {
+	width, height := getSize(img)
+	ig := image.NewGray(image.Rect(0, 0, width+1, height+1))
+	for x := 0; x < width+1; x++ {
+		for y := 0; y < height+1; y++ {
+			ig.SetGray(x, y, color.Gray{Y: 255})
+		}
+	}
+	for xy, _ := range img {
+		x := xy / 10000
+		y := xy % 10000
+		ig.SetGray(x, y, color.Gray{Y: 0})
+	}
+	SaveImage(ig, name)
+}
+
 func FindBeginPos(img map[int]bool, beginX int) int {
 	width, height := getSize(img)
 	for x := beginX; x < width; x++ {
@@ -248,6 +254,19 @@ func getSize(img map[int]bool) (int, int) {
 	return width, height
 }
 
+func combineMask(ma map[int]bool, mb map[int]bool, dx int, dy int) map[int]bool {
+	ret := make(map[int]bool)
+	for axy, _ := range ma {
+		ret[axy] = true
+	}
+	for bxy, _ := range mb {
+		x := bxy / 10000
+		y := bxy % 10000
+		ret[EncodeXY(x+dx, y+dy)] = true
+	}
+	return ret
+}
+
 func Recognize(srcImg map[int]bool, masks map[string][]*Mask) string {
 	width, height := getSize(srcImg)
 	srcXWeight := GetImageXWeight(srcImg)
@@ -265,15 +284,16 @@ func Recognize(srcImg map[int]bool, masks map[string][]*Mask) string {
 		var bestMask *Mask
 		label := ""
 		beginX := FindBeginPos(srcImg, curX+2)
-		endX := beginX + 2
+		endX := beginX + 3
 		if beginX == curX+2 {
-			beginX = curX - lastMaskWidth/3
-			endX = curX + 2
+			beginX = curX - lastMaskWidth/2
+			endX = curX + 3
 		}
 		if beginX < 0 {
 			beginX = 0
 		}
 		for _, labelMasks := range masks {
+
 			localMaxSim := 0.0
 			var localBestMask *Mask
 			localNextX := curX
@@ -306,7 +326,7 @@ func Recognize(srcImg map[int]bool, masks map[string][]*Mask) string {
 		curX = nextX + maskWidth
 		lastMaskWidth = maskWidth
 		log.Println(maxSim, label)
-		if maxSim < 0.8 {
+		if maxSim < 0.7 {
 			break
 		}
 
@@ -387,8 +407,8 @@ func SaveImage(img image.Image, name string) {
 	png.Encode(f, img)
 }
 
-func LoadProcessedImages() map[string]string {
-	f, _ := os.Open("label.tsv")
+func LoadProcessedImages(domain string) map[string]string {
+	f, _ := os.Open(domain + ".label")
 	defer f.Close()
 	r := bufio.NewReader(f)
 	ret := make(map[string]string)
@@ -418,13 +438,13 @@ func LoadProxyList() []string {
 	return ret
 }
 
-func ScanList(fname string, output string, masks map[string][]*Mask) {
+func ScanList(fname string, domain string, masks map[string][]*Mask) {
 	proxys := LoadProxyList()
-	proced := LoadProcessedImages()
+	proced := LoadProcessedImages(domain)
 
 	fin, _ := os.Open(fname)
 	defer fin.Close()
-	fout, _ := os.Create(output)
+	fout, _ := os.Create(domain + ".label")
 	defer fout.Close()
 
 	for link, phone := range proced {
@@ -449,7 +469,7 @@ func ScanList(fname string, output string, masks map[string][]*Mask) {
 			fmt.Println("skip", link, phone)
 			continue
 		}
-		if !strings.Contains(link, ".ganji.com") {
+		if !strings.Contains(link, domain) {
 			continue
 		}
 		img := LoadImageFromURL(link, proxys[rand.Intn(len(proxys))])
@@ -461,7 +481,6 @@ func ScanList(fname string, output string, masks map[string][]*Mask) {
 		if len(phone) == 11 && phone[0] == '1' {
 			fmt.Println(link, phone)
 			fout.WriteString(link + "\t" + phone + "\n")
-			//SaveImage(img, phone)
 		}
 	}
 }
@@ -470,12 +489,13 @@ func main() {
 	imgFile := flag.String("img", "", "image file name")
 	maskFolder := flag.String("mask", "masks", "mask folder name")
 	listFile := flag.String("list", "", "list file name")
+	domain := flag.String("domain", "", "domain")
 	flag.Parse()
 	masks := LoadMasks(*maskFolder)
 	log.Println("load", len(masks), "masks")
 
 	if *listFile != "" {
-		ScanList(*listFile, "label.tsv", masks)
+		ScanList(*listFile, *domain, masks)
 	} else {
 		var img image.Image
 		if strings.Contains(*imgFile, "http://") {
@@ -489,6 +509,7 @@ func main() {
 		}
 		SaveImage(img, "origin")
 		eimg := BiColor(img)
+		SaveMapImg(eimg, "gray")
 		log.Println(Recognize(eimg, masks))
 	}
 }
