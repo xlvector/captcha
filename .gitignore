@@ -1,4 +1,6 @@
-*.label
+*~
+*.sh
+
 bak
 combine.png
 gray.png
