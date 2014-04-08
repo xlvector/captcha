@@ -1,6 +1,7 @@
 failed
 phones
 tests_hard
+test_hard
 tests_proc
 *.zip
 *.gz
