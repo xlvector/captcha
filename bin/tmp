@@ -1,0 +1,194 @@
+package main
+
+import (
+	"captcha"
+	"captcha/cv"
+	"flag"
+	"fmt"
+	_ "image"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+)
+
+func BiColor(link string, output string) {
+	img := captcha.LoadImage(link)
+	biImg := cv.PeakAverageBasedBiColor(img)
+	biImg.Save(output)
+}
+
+func ExtractLines(link string) {
+	img := captcha.LoadImage(link)
+	preProc := captcha.PeakAverageBiColorPreProcessor{}
+	biImg := preProc.Process(img)
+	lineImg := cv.ExtractLines(biImg)
+	lineImg.Save("line")
+}
+
+func Download(link string){
+	img := captcha.LoadImage(link)
+	captcha.SaveImage(img, strconv.FormatInt(time.Now().Unix(), 10))
+}
+
+func Erosion(link string) {
+	img := captcha.LoadImage(link)
+	preProc := captcha.PeakAverageBiColorPreProcessor{}
+	biImg := preProc.Process(img)
+	biImg.Save("bi")
+	masks := []cv.Point{cv.Point{X:0,Y:1},cv.Point{X:1,Y:0},cv.Point{X:0,Y:-1},}
+	biImg = cv.Erosion(biImg,masks)
+	biImg.Save("erosion")
+}
+
+func Decode(link string, output string, pred string) []*captcha.Result {
+	img := captcha.LoadImage(link)
+	img = cv.MeanShift(img)
+	masks := captcha.LoadMasks("./masks")
+	captcha.SaveImage(img, output)
+	var predictor captcha.RawPredictor
+	if pred == "cut" {
+		predictor = &(captcha.CombinedRawPredictor{Pred: &captcha.CutBasedPredictor{}, PreProc: &captcha.PeakAverageBiColorPreProcessor{}})
+	} else if pred == "cc" {
+		predictor = &(captcha.CombinedRawPredictor{Pred: &captcha.ConnectedComponentPredictor{Dx:1, Dy:1,}, PreProc: &captcha.PeakAverageBiColorPreProcessor{}})
+	} else if pred == "ccc" {
+		predictor = &captcha.ConnectedComponentRawPredictor{Dx:1, Dy:1,}
+	}
+	return predictor.Predict(img, masks, captcha.MIX)
+}
+
+func GetLabelClass(label string) int {
+	if label[0] >= '0' && label[0] <= '9' {
+		return int(label[0] - '0')
+	}
+	if label[0] >= 'a' && label[0] <= 'z' {
+		return int(label[0]-'a') + 10
+	}
+	return -1
+}
+
+func GenerateDataSet(output string) {
+	masks := captcha.LoadMasks("./masks")
+	f, _ := os.Create(output)
+	defer f.Close()
+	for _, mask := range masks.Masks() {
+		features := mask.Img.ExtractFeatures()
+		line := strconv.Itoa(GetLabelClass(mask.Label))
+		for i, f := range features {
+			if f > 0.0 {
+				line += "\t"
+				line += strconv.Itoa(i)
+				line += ":"
+				line += strconv.FormatFloat(f, 'g', 5, 64)
+			}
+		}
+		f.WriteString(line + "\n")
+	}
+}
+
+func TestAll(pred string, folder string) {
+	imgs := captcha.LoadTestImages(folder)
+	log.Println("test images", len(imgs))
+	masks := captcha.LoadMasks("./masks")
+	hit := 0.0
+	total := 0.0
+	for _, img := range imgs {
+		predictor := captcha.NewMetaPredictor()
+		log.Println(img.Path)
+		ok := false
+		for {
+			copyImg := captcha.CopyImage(img.Img)
+			results := predictor.Predict(copyImg, masks, img.ChType)
+			if results == nil {
+				break
+			}
+			for _, result := range results {
+				log.Println(">>>>>>>>>", result.Label, img.Label)
+				if result.Label == img.Label {
+					log.Println("--------- ok")
+					hit += 1.0
+					ok = true
+					break
+				}
+			}
+			if ok {
+				break
+			}
+		}
+		if !ok {
+			captcha.SaveImage(img.Img, "./failed/" + img.Label)
+		}
+		total += 1.0
+		fmt.Println()
+	}
+	log.Println("hit ratio", hit/total)
+}
+
+func ConnectComponent(link string) {
+	img := captcha.LoadImage(link)
+	preProc := captcha.PeakAverageBiColorPreProcessor{}
+	matImg := preProc.Process(img)
+	matImg.Save("source")
+	ccs := cv.ExtractAllConnectedComponentInBinaryImage(matImg, 1, 4)
+	for _, cc := range ccs {
+		if cc.Size < 100 {
+			continue
+		}
+		cc.Save("./masks/" + cc.Encode())
+	}
+}
+
+func MeanShift(link string) {
+	img := cv.MeanShift(captcha.LoadImage(link))
+	captcha.SaveImage(img, "meanshift")
+}
+
+func Smooth(link string) {
+	img := captcha.LoadImage(link)
+	for k := 0; k < 2; k++{
+		img = cv.AverageSmooth(img)
+	}
+	captcha.SaveImage(img, "smooth")
+}
+
+func main() {
+	method := flag.String("method", "", "method")
+	input := flag.String("input", "", "input")
+	output := flag.String("output", "", "output")
+	pred := flag.String("pred", "cut", "predictor")
+	flag.Parse()
+
+	if *method == "bicolor" {
+		BiColor(*input, *output)
+	} else if *method == "guess" {
+		results := Decode(*input, *output, *pred)
+		log.Println("guess result", results[0])
+	} else if *method == "cc" {
+		ConnectComponent(*input)
+	} else if *method == "line" {
+		ExtractLines(*input)
+	} else if *method == "test" {
+		TestAll(*pred, *input)
+	} else if *method == "ms" {
+		MeanShift(*input)
+	} else if *method == "smooth" {
+		Smooth(*input)
+	} else if *method == "dataset" {
+		GenerateDataSet(*output)
+	} else if *method == "erosion" {
+		Erosion(*input)
+	} else if *method == "download" {
+		Download(*input)
+	} else if *method == "service" {
+		http.Handle("/captcha", captcha.NewCaptchaHandler())
+		http.Handle("/", http.FileServer(http.Dir("./")))
+		s := &http.Server{
+			Addr:           ":8900",
+			ReadTimeout:    30 * time.Second,
+			WriteTimeout:   30 * time.Second,
+			MaxHeaderBytes: 1 << 20,
+		}
+		log.Fatal(s.ListenAndServe())
+	}
+}
