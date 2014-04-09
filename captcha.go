@@ -75,6 +75,7 @@ func (self *CaptchaHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 			html += "<br/>"
 			html += result.Label + "&nbsp;:&nbsp;" + strconv.FormatFloat(result.GetWeight(), 'g', 5, 64) + "<br/>"
 		}
+		html += "<a href=\"http://10.105.75.174:8901/tools/\">Begin to Label</a>";
 		html += "</body></html>"
 		fmt.Fprint(w, html)
 	} else if format == "json" {
