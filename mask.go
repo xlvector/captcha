@@ -150,7 +150,7 @@ func LoadMasks(folder string) *MaskIndex {
 		}
 		if f.IsDir() {
 			label := f.Name()
-			if len(label) > 2{
+			if len(label) > 2 || label == "#"{
 				return nil
 			}
 			log.Println(label, root)
