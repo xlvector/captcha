@@ -52,7 +52,7 @@ func NewCaptchaHandler() *CaptchaHandler {
 		"https://ibsbjstar.ccb.com.cn/NCCB_Encoder/Encoder?CODE=Fa1IiPFNPnzuFzsa5HMG2DbNU0qB9zrNMEsBtyiNm0wmWXZcBkaeOShOVkJF70IPVUdZs0fNu0LVb6bOv0EJz3eNc0VJnAqmcG",
 		"https://passport.lefeng.com/RandomCode.do?type=reg",
 		"http://www.liepin.com/image/randomcode/",
-		"http://gsxt.saic.gov.cn/zjgs/verify"
+		"http://gsxt.saic.gov.cn/zjgs/verify",
 	}
 	return &ret
 }
