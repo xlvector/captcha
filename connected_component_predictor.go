@@ -22,6 +22,7 @@ func (self *BinaryImageConnectedComponentPredictor) Guess(img *cv.BinaryImage, m
 		if cc.Size < 50 || cc.Width < 3 || cc.Height < 8 {
 			continue
 		}
+		unScaleCC := cv.CopyBinaryImage(cc)
 		cc = scaler.Process(cc)
 		localResults := mki.FindBestMatchedMasks(cc, chType, 0)
 		if localResults == nil || len(localResults) == 0{
@@ -34,7 +35,7 @@ func (self *BinaryImageConnectedComponentPredictor) Guess(img *cv.BinaryImage, m
 
 		ret.Label += localResults[0].Label
 		ret.Weight += localResults[0].Weight
-		ret.AddComponent(cc)
+		ret.AddComponent(unScaleCC)
 		if len(ret.Label) > 8 {
 			return []*Result{}
 		}
@@ -58,7 +59,7 @@ func (self *ConnectedComponentPredictor) Guess(img image.Image, mki *MaskIndex, 
 		if cc.Size < 50 || cc.Size + 100 > imgSize || cc.Width + 10 > img.Bounds().Dx() || cc.Width < 3 || cc.Height < 8 {
 			continue
 		}
-		
+		unScaleCC := cv.CopyBinaryImage(cc)
 		cc = scaler.Process(cc)
 		
 		localResults := mki.FindBestMatchedMasks(cc, chType, 0)
@@ -71,7 +72,7 @@ func (self *ConnectedComponentPredictor) Guess(img image.Image, mki *MaskIndex, 
 		}
 		ret.Label += localResults[0].Label
 		ret.Weight += localResults[0].Weight
-		ret.AddComponent(cc)
+		ret.AddComponent(unScaleCC)
 		if len(ret.Label) > 8 {
 			return []*Result{}
 		}
