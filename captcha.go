@@ -43,6 +43,16 @@ func NewCaptchaHandler() *CaptchaHandler {
 		"http://117.22.252.219:8002/servlet/validateCodeServlet",
 		"http://gsxt.ngsh.gov.cn/ECPS/rand.action",
 		"http://www.360doc.com/VerifyCode.aspx?",
+		"https://omeo.alipay.com/service/checkcode?sessionID=b115901917504f20f792542d74ca2c4b&t=0.5697440346854534",
+		"https://uac.10010.com/portal/Service/CreateImage",
+		"http://www.189.cn/dqmh/createCheckCode.do?method=checkLoginCode&date=1396338767393",
+		"https://ebsnew.boc.cn/BII/ImageValidation/validation1396327587558.gif",
+		"https://pbank.95559.com.cn/personbank/DynImage",
+		"http://reg.cntv.cn/simple/verificationCode.action?1395911362783",
+		"https://ibsbjstar.ccb.com.cn/NCCB_Encoder/Encoder?CODE=Fa1IiPFNPnzuFzsa5HMG2DbNU0qB9zrNMEsBtyiNm0wmWXZcBkaeOShOVkJF70IPVUdZs0fNu0LVb6bOv0EJz3eNc0VJnAqmcG",
+		"https://passport.lefeng.com/RandomCode.do?type=reg",
+		"http://www.liepin.com/image/randomcode/",
+		"http://gsxt.saic.gov.cn/zjgs/verify"
 	}
 	return &ret
 }
