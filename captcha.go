@@ -70,7 +70,7 @@ func (self *CaptchaHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 		for _, result := range results {
 			for _, component := range result.Components{
 				component.Save("./unknown/" + component.Encode())
-				html += "<img style=\"border:solid 1px #fff;\" src=\"" + "./masks/" + component.Encode() + ".png\"/>&nbsp;"
+				html += "<img style=\"border:solid 1px #fff;\" src=\"" + "./unknown/" + component.Encode() + ".png\"/>&nbsp;"
 			}
 			html += "<br/>"
 			html += result.Label + "&nbsp;:&nbsp;" + strconv.FormatFloat(result.GetWeight(), 'g', 5, 64) + "<br/>"
