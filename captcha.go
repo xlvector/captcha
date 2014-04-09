@@ -49,8 +49,8 @@ func NewCaptchaHandler() *CaptchaHandler {
 
 func (self *CaptchaHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if rand.Intn(10) == 1 {
-		ret.Masks.Clear()
-		ret.Masks = LoadMasks("./masks/")
+		self.Masks.Clear()
+		self.Masks = LoadMasks("./masks/")
 	}
 	link := req.FormValue("link")
 	if len(link) == 0 {
