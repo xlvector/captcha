@@ -27,6 +27,11 @@ func NewMaskIndex() *MaskIndex {
 	return &ret
 }
 
+func (self *MaskIndex) Clear() {
+	self.masks = []*Mask{}
+	self.index = make(map[int][]int)
+}
+
 func (self *Mask) MatchChType(chType int) bool {
 	if chType == MIX {
 		return true
