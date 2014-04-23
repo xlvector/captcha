@@ -10,7 +10,11 @@ import (
 
 func Guess(link string) {
 	img := captcha.LoadImage(link)
+	/*
 	decoder := &captcha.Decoder{
+		ImageProcessors: []cv.ImageProcessor {
+				&cv.MeanShift{K:1},
+			},
 		BiColorProcessor: &cv.PeakAverageBasedBiColor{},
 		BinaryImageProcessors: []cv.BinaryImageProcessor{
 			&cv.RemoveBinaryImageBorder{},
@@ -21,21 +25,23 @@ func Guess(link string) {
 		},
 		BinaryImagePredictor: &captcha.BinaryImageConnectedComponentPredictor{Dx : 1, Dy : 1},
 	}
-	/*
+	*/
 	decoder := &captcha.Decoder{
 		BiColorProcessor: &cv.PeakAverageBasedBiColor{},
 		BinaryImageProcessors: []cv.BinaryImageProcessor{
 			&cv.RemoveBinaryImageBorder{},
 			&cv.RemoveIsolatePoints{},
-			&cv.BoundBinaryImage{XMinOpen: 1, YMinOpen : 3},
-			&cv.RemoveXAxis{K : 1},
+			//&cv.Thining{},
+			&cv.BoundBinaryImage{XMinOpen: 0, YMinOpen : 0},
+			//&cv.RemoveXAxis{K : 1},
 			&cv.ScaleBinaryImage{Height : captcha.SCALE_HEIGHT},
 		},
 		BinaryImagePredictor: &captcha.FastCutBasedPredictor{},
 	}
-	*/
+	
 	masks := captcha.LoadMasks("./masks")
-	log.Println(decoder.Predict(img, masks, captcha.MIX))
+	results := decoder.Predict(img, masks, captcha.NUMBER)
+	
 }
 
 func main() {

@@ -14,6 +14,7 @@ func NewMetaPredictor() *MetaPredictor {
 	ret := MetaPredictor{}
 
 	ret.predictors = []*Decoder{
+		/*
 		&Decoder{
 			ImageProcessors: []cv.ImageProcessor {
 				&cv.MeanShift{K:1},
@@ -87,19 +88,20 @@ func NewMetaPredictor() *MetaPredictor {
 			},
 			BinaryImagePredictor: &BinaryImageConnectedComponentPredictor{Dx : 2, Dy : 6},
 		},
-		/*
+		*/
+		
 		&Decoder{
 			BiColorProcessor: &cv.PeakAverageBasedBiColor{},
 			BinaryImageProcessors: []cv.BinaryImageProcessor{
 				&cv.RemoveBinaryImageBorder{},
 				&cv.RemoveIsolatePoints{},
-				&cv.BoundBinaryImage{XMinOpen: 1, YMinOpen : 3},
-				&cv.RemoveXAxis{K : 2},
+				&cv.BoundBinaryImage{XMinOpen: 1, YMinOpen : 1},
+				&cv.RemoveXAxis{K : 1},
 				&cv.ScaleBinaryImage{Height : SCALE_HEIGHT},
 			},
 			BinaryImagePredictor: &FastCutBasedPredictor{},
 		},
-		*/
+		
 	}
 	return &ret
 }

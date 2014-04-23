@@ -1,5 +1,9 @@
 package cv
 
+import (
+	"math"
+)
+
 type Point struct {
 	X, Y int
 }
@@ -47,4 +51,24 @@ func Abs(a int) int {
 	} else {
 		return a
 	}
+}
+
+func Mean(h []float64) float64 {
+	sum := 0.0
+	for _, v := range h {
+		sum += v
+	}
+	if len(h) == 0{
+		return 0.0
+	}
+	return sum / float64(len(h))
+}
+
+func Var(h []float64) float64 {
+	m := Mean(h)
+	ret := 0.0
+	for _, v := range h {
+		ret += (v - m) * (v - m)
+	}
+	return math.Sqrt(ret / float64(len(h)))
 }

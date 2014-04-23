@@ -72,7 +72,7 @@ func (self *FastCutBasedPredictor) Guess(img *cv.BinaryImage, mki *MaskIndex, ch
 		var bestLocalResults []*Result
 		nextX := 0
 		endXs := self.FindNextSplitPoints(img, curX, h)
-		for beginX := 0; beginX < 3; beginX++ {
+		for beginX := -2; beginX < 3; beginX++ {
 			for k, endX := range endXs {
 				if k > 20 {
 					break
@@ -119,7 +119,7 @@ func (self *FastCutBasedPredictor) Guess(img *cv.BinaryImage, mki *MaskIndex, ch
 		ret.Weight += bestLocalResults[0].Weight
 		ret.AddComponent(bestCutImg)
 		log.Println(bestLocalResults[0].Label, maxSim)
-		if len(ret.Label) > 8 || failCount > 5 {
+		if len(ret.Label) > 16 || failCount > 10 {
 			return []*Result{}
 		}
 	}
